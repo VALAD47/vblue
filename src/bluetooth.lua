@@ -6,6 +6,8 @@ local lgi = require 'lgi'
 local color = require 'color'
 local Gtk = lgi.Gtk
 local GLib = lgi.GLib
+
+signal.MULTI_THREAD = true
  
 --[[
 

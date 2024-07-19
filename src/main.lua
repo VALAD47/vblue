@@ -51,7 +51,7 @@ function app:on_activate()
         margin_end = 25,
         margin_bottom = 25,
     }
-
+    
     local buttons_box = Gtk.Box {
         orientation = Gtk.Orientation.VERTICAL,
         margin_start = 15,
