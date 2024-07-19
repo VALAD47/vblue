@@ -3,7 +3,6 @@ local a = require 'async'
 local Gtk = lgi.require('Gtk', '4.0')
 local bluetooth = require 'bluetooth'
 local GLib = lgi.GLib
-local inspect = require 'inspect'
 local task = require 'task'
  
 --task.DEBUG = true

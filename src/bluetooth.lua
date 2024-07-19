@@ -1,9 +1,7 @@
 local ldbus = require 'ldbus'
-local inspect = require 'inspect'
 local task = require 'task'
 local signal = require 'signal'
 local lgi = require 'lgi'
-local color = require 'color'
 local Gtk = lgi.Gtk
 local GLib = lgi.GLib
 
