@@ -131,7 +131,7 @@ local function call_dbus(destination, path, iface, method)
 
 	local response = sys_dbus:send_with_reply_and_block(msg)
 
-	if not response:iter_init(iter) then
+	if not response or not response:iter_init(iter) then
 		return nil
 	end
 
@@ -188,15 +188,15 @@ end
 -- Connecting to device. Using ListBoxRow as index of device
 function bluetooth.connect(dev)
 	if not dev then print("No selected") return end
-	local msg = call_dbus("org.bluez", list_devices[dev], "org.bluez.Device1", "Connect")
-	print(inspect(msg))
+	local msg = ldbus.message.new_method_call("org.bluez", list_devices[dev], "org.bluez.Device1", "Connect")
+	sys_dbus:send(msg)
 end
 
 -- Disconnecting to device. Using ListBoxRow as index of device
 function bluetooth.disconnect(dev)
 	if not dev then print("No selected") return end
-	local msg = call_dbus("org.bluez", list_devices[dev], "org.bluez.Device1", "Disconnect")
-	print(inspect(msg))
+	local msg = ldbus.message.new_method_call("org.bluez", list_devices[dev], "org.bluez.Device1", "Disconnect")
+	sys_dbus:send(msg)
 end
 
 return bluetooth
