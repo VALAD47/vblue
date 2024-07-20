@@ -1,7 +1,7 @@
 local lgi = require 'lgi'
 local a = require 'async'
 local Gtk = lgi.require('Gtk', '4.0')
-local bluetooth = require 'bluetooth'
+local bluetooth = require('src/bluetooth')
 local GLib = lgi.GLib
 local task = require 'task'
  
