@@ -17,5 +17,5 @@ Also, you have to install [GTK4](https://www.gtk.org/docs/installations/)
 
 To start application, run 
 ```
-lua src/main.lua
+./run
 ```
