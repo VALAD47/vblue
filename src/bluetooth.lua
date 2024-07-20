@@ -22,6 +22,7 @@ local sys_dbus = ldbus.bus.get("system")
 local bluetooth = {}
 	-- List that we will using to show all devices
 	bluetooth.LIST = nil
+	bluetooth.DEBUG = false
 
 --[[
 	Table with devices on list

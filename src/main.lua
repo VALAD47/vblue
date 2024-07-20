@@ -4,8 +4,13 @@ local Gtk = lgi.require('Gtk', '4.0')
 local bluetooth = require('src/bluetooth')
 local GLib = lgi.GLib
 local task = require 'task'
- 
---task.DEBUG = true
+
+
+if arg[1] == "--debug" then
+    task.DEBUG = true
+    bluetooth.DEBUG = true
+end
+
 
 local function printf(s, ...)
     print(string.format(s, ...))

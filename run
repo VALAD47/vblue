@@ -1,3 +1,11 @@
 #!/bin/bash
 
+while [[ "$1" =~ ^- && ! "$1" == "--" ]]; do case $1 in
+  --debug )
+    lua src/main.lua --debug
+    exit
+    ;;
+esac; shift; done
+if [[ "$1" == '--' ]]; then shift; fi
+
 lua src/main.lua
