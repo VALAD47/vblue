@@ -1,1 +1,3 @@
-.vscode
+.vscode/
+**.pkg.tar.zst
+pkg

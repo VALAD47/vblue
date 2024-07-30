@@ -7,6 +7,10 @@ local GLib = lgi.GLib
 
 signal.MULTI_THREAD = true
 
+local color = function (s, n)
+	return "\27[38;5;".. n%256 .."m"..tostring(s).."\27[0m"
+end
+
 --[[
 
 	type Device: 		bluez_Device1
@@ -20,9 +24,37 @@ local sys_dbus = ldbus.bus.get("system")
 
 -- Table that contains all functions and will be returned at end
 local bluetooth = {}
-	-- List that we will using to show all devices
-	bluetooth.LIST = nil
-	bluetooth.DEBUG = false
+-- List that we will using to show all devices
+bluetooth.LIST = nil
+bluetooth.DEBUG = false
+
+
+local debug = {}
+debug.INSPECT = nil
+
+-- Printing human readable value
+--
+-- t: any
+function debug.inspect(t)
+	if not bluetooth.DEBUG then return end
+	if not debug.INSPECT then
+		debug.INSPECT = require('inspect')
+	end
+
+	print((color("[ %.3f ]", 235)):format(os.clock()), color("[ BLUETOOTH ]", 27), debug.INSPECT(t))
+end
+
+function debug.print(...)
+	if bluetooth.DEBUG then
+		print((color("[ %.3f ]", 235)):format(os.clock()), color("[ BLUETOOTH ]", 27 ), ...)
+	end
+end
+
+-- Send notification to system
+local function notify(s)
+	debug.print("New notify with text ", s)
+	os.execute(("notify-send -a vblue -c bluetooth \"%s\""):format(s))
+end
 
 --[[
 	Table with devices on list
@@ -30,6 +62,9 @@ local bluetooth = {}
 	[ListBoxRow]: dev_PATH
 ]]
 local list_devices = {}
+
+-- Saved value of device battery percentage
+local battery = -1
 
 --[[
 	Table with all discovered devices
@@ -47,7 +82,7 @@ local devices = setmetatable({}, {
 		key: dev_PATH
 		value: { dev: Device }
 	]]
-	__newindex = function (t, key, value)
+	__newindex = function(t, key, value)
 		-- List row, that is used to show and indetify device
 		local list_box_row = Gtk.ListBoxRow {}
 
@@ -86,6 +121,11 @@ devices.update:connect(function(path)
 	-- If updated device is connected, we showing that he is connected
 	if devices[path].dev.Connected then
 		bluetooth.CONNECTED_LABEL:set_label("Connected: " .. devices[path].dev.Alias)
+		if devices[path].battery and devices[path].battery.Percentage ~= battery then
+			battery = devices[path].battery.Percentage
+			debug.print(("New battery percentage: %d"):format(battery))
+			notify(("%s: %d%%"):format(devices[path].dev.Alias or devices[path].dev.Address, battery))
+		end
 	end
 end)
 
@@ -100,16 +140,16 @@ local function unwrap(iter)
 	local results = {}
 	while first or iter:next() do
 		first = false
-		if iter:get_arg_type() == "a" or iter:get_arg_type() == "r" then 	-- array or struct
+		if iter:get_arg_type() == "a" or iter:get_arg_type() == "r" then -- array or struct
 			local ret = unwrap(iter:recurse())
 			table.insert(results, ret)
-		elseif iter:get_arg_type() == "e" then 								-- dict_entry
+		elseif iter:get_arg_type() == "e" then -- dict_entry
 			local ret = unwrap(iter:recurse())
 			results[ret[1]] = ret[2]
-		elseif iter:get_arg_type() == "v" then 								-- variant
+		elseif iter:get_arg_type() == "v" then -- variant
 			local ret = unwrap(iter:recurse())
 			table.insert(results, ret[1])
-		else 																-- basic type
+		else -- basic type
 			local ret = iter:get_basic()
 			table.insert(results, ret)
 		end
@@ -168,34 +208,45 @@ function bluetooth.discover_devices()
 				end
 			end
 
+
+
+			--debug.inspect(devs)
+
 			-- Searching for devices
 			for i, v in pairs(devs[1]) do
 				if string_starts(i, "/org/bluez/hci0/") and v["org.bluez.Device1"] ~= nil then
 					-- If it's first time discovered, we should send completely new table with `dev` set to device. This will alse target metamethod
 					if not devices[i] then
-						devices[i] = { dev = v["org.bluez.Device1"] }
+						devices[i] = { dev = v["org.bluez.Device1"], battery = v["org.bluez.Battery1"] }
 					else
-					-- If it's not first time discovered, we only updating `dev` part, because we don't want to clear `list_box_row`
+						-- If it's not first time discovered, we only updating `dev` part, because we don't want to clear `list_box_row`
 						devices[i].dev = v["org.bluez.Device1"]
+						devices[i].battery = v["org.bluez.Battery1"]
 						devices.update:fire(i)
 					end
 				end
 			end
-		    ::continue::
+			::continue::
 		end
 	end)
 end
 
 -- Connecting to device. Using ListBoxRow as index of device
 function bluetooth.connect(dev)
-	if not dev then print("No selected") return end
+	if not dev then
+		print("No selected")
+		return
+	end
 	local msg = ldbus.message.new_method_call("org.bluez", list_devices[dev], "org.bluez.Device1", "Connect")
 	sys_dbus:send(msg)
 end
 
 -- Disconnecting to device. Using ListBoxRow as index of device
 function bluetooth.disconnect(dev)
-	if not dev then print("No selected") return end
+	if not dev then
+		print("No selected")
+		return
+	end
 	local msg = ldbus.message.new_method_call("org.bluez", list_devices[dev], "org.bluez.Device1", "Disconnect")
 	sys_dbus:send(msg)
 end
