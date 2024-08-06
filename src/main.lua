@@ -10,6 +10,7 @@ local task = require 'task'
 if arg[1] == "--debug" then
     task.DEBUG = true
     bluetooth.DEBUG = true
+    bluetooth.INSPECT = true
 end
 
 
@@ -102,6 +103,15 @@ function app:on_activate()
         bluetooth.disconnect(list:get_selected_row())
     end
 
+    local button_remove = Gtk.Button {
+        label = "Remove",
+        margin_top = 10
+    }
+    button_remove:set_size_request(200, 40)
+    function button_remove:on_clicked()
+        bluetooth.remove(list:get_selected_row())
+    end
+
     --Label to show currently connected device
     local connected = Gtk.Label {
         label = "Connected: [nil]"
@@ -117,6 +127,7 @@ function app:on_activate()
 
     buttons_box:append(button_connect)
     buttons_box:append(button_disconnect)
+    buttons_box:append(button_remove)
 
     box3:append(connected)
     box3:append(button1)

@@ -35,13 +35,13 @@ debug.INSPECT = nil
 -- Printing human readable value
 --
 -- t: any
-function debug.inspect(t)
+function debug.inspect(t, name)
 	if not bluetooth.DEBUG then return end
 	if not debug.INSPECT then
 		debug.INSPECT = require('inspect')
 	end
 
-	print((color("[ %.3f ]", 235)):format(os.clock()), color("[ BLUETOOTH ]", 27), debug.INSPECT(t))
+	print((color("[ %.3f ]", 235)):format(os.clock()), color("[ BLUETOOTH ]", 27), name, debug.INSPECT(t))
 end
 
 function debug.print(...)
@@ -69,7 +69,7 @@ local battery = -1
 --[[
 	Table with all discovered devices
 
-	{
+	[dev_PATH]: {
 		dev: Device,
 		list_box_row: ListBoxRow,
 	}
@@ -83,6 +83,7 @@ local devices = setmetatable({}, {
 		value: { dev: Device }
 	]]
 	__newindex = function(t, key, value)
+		debug.print("Discovered", value.dev.Address);
 		-- List row, that is used to show and indetify device
 		local list_box_row = Gtk.ListBoxRow {}
 
@@ -140,16 +141,19 @@ local function unwrap(iter)
 	local results = {}
 	while first or iter:next() do
 		first = false
-		if iter:get_arg_type() == "a" or iter:get_arg_type() == "r" then -- array or struct
+		if iter:get_arg_type() == "a" then 		-- array
 			local ret = unwrap(iter:recurse())
 			table.insert(results, ret)
-		elseif iter:get_arg_type() == "e" then -- dict_entry
+		elseif iter:get_arg_type() == "e" then 	-- dict_entry
 			local ret = unwrap(iter:recurse())
 			results[ret[1]] = ret[2]
-		elseif iter:get_arg_type() == "v" then -- variant
+		elseif iter:get_arg_type() == "v" then 	-- variant
 			local ret = unwrap(iter:recurse())
 			table.insert(results, ret[1])
-		else -- basic type
+		elseif iter:get_arg_type() == "r" then	-- struct
+			local ret = unwrap(iter:recurse())
+			table.insert(results, ret)
+		else 									-- basic type
 			local ret = iter:get_basic()
 			table.insert(results, ret)
 		end
@@ -164,13 +168,22 @@ end
 	path: path to device which we calling method for
 	iface: interface that we using, like `org.bluez.Device1`
 	method: method which we calling
+	...: {value, ldbus.types.*}
 ]]
-local function call_dbus(destination, path, iface, method)
-	local msg = ldbus.message.new_method_call(destination, path, iface, method)
+local function call_dbus(destination, path, iface, method, ...)
+	local msg = assert(ldbus.message.new_method_call(destination, path, iface, method), "Message NULL")
 	local iter = ldbus.message.iter.new()
 	msg:iter_init_append(iter)
 
-	local response = sys_dbus:send_with_reply_and_block(msg)
+	for i,v in pairs({...}) do
+		if type(v) == "table" then
+			assert(iter:append_basic(v[1], v[2]), "Out of memory.")
+		else
+			assert(iter:append_basic(v), "Out of memory.")
+		end
+	end
+
+	local response = assert(sys_dbus:send_with_reply_and_block(msg))
 
 	if not response or not response:iter_init(iter) then
 		return nil
@@ -237,6 +250,7 @@ function bluetooth.connect(dev)
 		print("No selected")
 		return
 	end
+	debug.print("Connecting", devices[list_devices[dev]].dev.Address);
 	local msg = ldbus.message.new_method_call("org.bluez", list_devices[dev], "org.bluez.Device1", "Connect")
 	sys_dbus:send(msg)
 end
@@ -247,8 +261,18 @@ function bluetooth.disconnect(dev)
 		print("No selected")
 		return
 	end
+	debug.print("Disconnecting", devices[list_devices[dev]].dev.Address);
 	local msg = ldbus.message.new_method_call("org.bluez", list_devices[dev], "org.bluez.Device1", "Disconnect")
 	sys_dbus:send(msg)
+end
+
+function bluetooth.remove(dev)
+	if not dev then
+		print("No selected")
+		return
+	end
+	debug.print("Removing", devices[list_devices[dev]].dev.Address);
+	local msg = call_dbus("org.bluez", "/org/bluez/hci0", "org.bluez.Adapter1", "RemoveDevice", {list_devices[dev], ldbus.types.object_path})
 end
 
 return bluetooth
