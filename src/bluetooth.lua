@@ -6,6 +6,7 @@ local Gtk = lgi.Gtk
 local GLib = lgi.GLib
 
 signal.MULTI_THREAD = true
+task.ESCAPE_ROW 	= 15
 
 local color = function (s, n)
 	return "\27[38;5;".. n%256 .."m"..tostring(s).."\27[0m"
@@ -44,15 +45,15 @@ function debug.inspect(t, name)
 	print((color("[ %.3f ]", 235)):format(os.clock()), color("[ BLUETOOTH ]", 27), name, debug.INSPECT(t))
 end
 
-function debug.print(...)
+function debug.print(pos, ...)
 	if bluetooth.DEBUG then
-		print((color("[ %.3f ]", 235)):format(os.clock()), color("[ BLUETOOTH ]", 27 ), ...)
+		print(("\27[%dH"..color("[ %.3f ]", 235)):format(pos+task.MAX_DEBUG_ROW ,os.clock()), color("[ BLUETOOTH ]", 27 ), ...)
 	end
 end
 
 -- Send notification to system
 local function notify(s)
-	debug.print("New notify with text ", s)
+	debug.print(5, "New notify with text ", s)
 	os.execute(("notify-send -a vblue -c bluetooth \"%s\""):format(s))
 end
 
@@ -83,7 +84,7 @@ local devices = setmetatable({}, {
 		value: { dev: Device }
 	]]
 	__newindex = function(t, key, value)
-		debug.print("Discovered", value.dev.Address);
+		debug.print(0, "Discovered", value.dev.Address);
 		-- List row, that is used to show and indetify device
 		local list_box_row = Gtk.ListBoxRow {}
 
@@ -124,7 +125,7 @@ devices.update:connect(function(path)
 		bluetooth.CONNECTED_LABEL:set_label("Connected: " .. devices[path].dev.Alias)
 		if devices[path].battery and devices[path].battery.Percentage ~= battery then
 			battery = devices[path].battery.Percentage
-			debug.print(("New battery percentage: %d"):format(battery))
+			debug.print(4, ("New battery percentage: %d"):format(battery))
 			notify(("%s: %d%%"):format(devices[path].dev.Alias or devices[path].dev.Address, battery))
 		end
 	end
@@ -250,7 +251,7 @@ function bluetooth.connect(dev)
 		print("No selected")
 		return
 	end
-	debug.print("Connecting", devices[list_devices[dev]].dev.Address);
+	debug.print(1, "Connecting", devices[list_devices[dev]].dev.Address);
 	local msg = ldbus.message.new_method_call("org.bluez", list_devices[dev], "org.bluez.Device1", "Connect")
 	sys_dbus:send(msg)
 end
@@ -261,7 +262,7 @@ function bluetooth.disconnect(dev)
 		print("No selected")
 		return
 	end
-	debug.print("Disconnecting", devices[list_devices[dev]].dev.Address);
+	debug.print(2, "Disconnecting", devices[list_devices[dev]].dev.Address);
 	local msg = ldbus.message.new_method_call("org.bluez", list_devices[dev], "org.bluez.Device1", "Disconnect")
 	sys_dbus:send(msg)
 end
@@ -271,7 +272,7 @@ function bluetooth.remove(dev)
 		print("No selected")
 		return
 	end
-	debug.print("Removing", devices[list_devices[dev]].dev.Address);
+	debug.print(3, "Removing", devices[list_devices[dev]].dev.Address);
 	local msg = call_dbus("org.bluez", "/org/bluez/hci0", "org.bluez.Adapter1", "RemoveDevice", {list_devices[dev], ldbus.types.object_path})
 end
 

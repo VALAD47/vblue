@@ -1,5 +1,5 @@
 pkgname=vblue
-pkgver=1.1.0
+pkgver=1.1.1
 pkgdesc="Bluetooth utility made by VALAD47"
 arch=('x86_64')
 pkgrel=1
